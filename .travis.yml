@@ -3,3 +3,27 @@ sudo: true
 language: node_js
 node_js:
   - 14.18.1
+before_install:
+  - curl -O http://packages.confluent.io/archive/5.4/confluent-community-5.4.0-2.12.tar.gz
+  - mkdir -p confluent && tar -xzf confluent-community-5.4.0-2.12.tar.gz -C confluent --strip-components 1
+  - sed -ir 's/listeners=.*8081$/listeners=http:\/\/127.0.0.1:8085/g' confluent/etc/schema-registry/schema-registry.properties
+  - echo "ksql.schema.registry.url=http://127.0.0.1:8085" >> confluent/etc/ksql/ksql-server.properties
+  - nohup bash -c "cd confluent && bin/zookeeper-server-start etc/kafka/zookeeper.properties &"
+  - nohup bash -c "cd confluent && bin/kafka-server-start etc/kafka/server.properties &"
+  - sleep 30
+  - nohup bash -c "cd confluent && bin/schema-registry-start etc/schema-registry/schema-registry.properties &"
+  - sleep 30
+  - nohup bash -c "cd confluent && bin/ksql-server-start etc/ksql/ksql-server.properties &"
+  - sudo service mongod stop
+  - sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 656408E390CFB1F5
+  - echo "deb http://repo.mongodb.org/apt/ubuntu bionic/mongodb-org/4.4 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-4.4.list
+  - sudo apt-get update
+  - sudo apt-get install -y --allow-unauthenticated mongodb-org=4.4.22 mongodb-org-server=4.4.22 mongodb-org-shell=4.4.22 mongodb-org-mongos=4.4.22 mongodb-org-tools=4.4.22
+  - sudo mkdir -p /data/db/rs0-{0..2}
+  - sudo mongod --fork --logpath /var/log/mongodb0.log --replSet rs0 --port 27017 --dbpath /data/db/rs0-0 &
+  - sudo mongod --fork --logpath /var/log/mongodb1.log --replSet rs0 --port 27018 --dbpath /data/db/rs0-1 &
+  - sudo mongod --fork --logpath /var/log/mongodb2.log --replSet rs0 --port 27019 --dbpath /data/db/rs0-2 &
+  - sleep 30
+  - mongo --eval 'rs.initiate({"_id":"rs0", "members":[{"_id":1, "host":"localhost:27017"},{"_id":2, "host":"localhost:27018"},{"_id":3, "host":"localhost:27019"}]})'
+  - sleep 15
+  - rm -rf node_modules  
