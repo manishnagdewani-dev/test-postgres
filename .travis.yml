@@ -1,9 +1,10 @@
-dist: focal
+dist: bionic
 sudo: true
 language: node_js
 node_js:
   - 14.18.1
 before_install:
+  - sudo rm -f /etc/apt/sources.list.d/pgdg.list
   - curl -O http://packages.confluent.io/archive/5.4/confluent-community-5.4.0-2.12.tar.gz
   - mkdir -p confluent && tar -xzf confluent-community-5.4.0-2.12.tar.gz -C confluent --strip-components 1
   - sed -ir 's/listeners=.*8081$/listeners=http:\/\/127.0.0.1:8085/g' confluent/etc/schema-registry/schema-registry.properties
